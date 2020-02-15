@@ -1,20 +1,21 @@
-import os
-import cv2
-import csv
 import math
 import time
 import random
 
-import h5py as h5py
+import cv2
+import csv
 import numpy as np
-
 import pybullet as p
 import pybullet_data as pdata
 from pybullet_envs.bullet import kuka
+from infer import *
 
 
-def init():
-    p.connect(p.DIRECT)
+def init(useGUI):
+    if (useGUI):
+        p.connect(p.GUI)
+    else:
+        p.connect(p.DIRECT)
     p.configureDebugVisualizer(p.COV_ENABLE_PLANAR_REFLECTION, 0)
     p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, 0)
     p.configureDebugVisualizer(p.COV_ENABLE_GUI, 1)
@@ -45,7 +46,7 @@ def grasp(robot, obj):
     start = time.time()
     # Wait until the gripper grasps the object.
     while p.getContactPoints(obj, robot.kukaUid, -1, 10) == ():
-        if time.time() - start > 10:
+        if time.time() - start > 5:
             return False
         p.stepSimulation()
 
@@ -60,11 +61,40 @@ def grasp(robot, obj):
 
 
 def test(view_matrix, projection_matrix):
+    seg_img, obj, obj_pos, obj_rot = generate_random_object(view_matrix, projection_matrix)
+
+    # Load Kuka robot.
+    robot = kuka.Kuka(urdfRootPath=pdata.getDataPath(), timeStep=1. / 240.)
+
+    # Remove the tray object.
+    p.removeBody(robot.trayUid)
+
+    x = obj_pos[0] - robot.getObservation()[0]
+    y = obj_pos[1] - robot.getObservation()[1]
+    a = math.pi / 2 - obj_rot
+
+    generate_robot_movement(robot, x, y, a)
+
+    return grasp(robot, obj), seg_img, [x, y, a]
+
+
+def generate_robot_movement(robot, x, y, a):
+    robot.applyAction([x, y, -0.22, a, 0.3])
+
+    # Wait until the gripper is at surface level.
+    while robot.getObservation()[2] > 0.24:
+        p.stepSimulation()
+
+    # Wait until the gripper stops moving.
+    while p.getLinkState(robot.kukaUid, 13, 1)[6][0] > 1e-5:
+        p.stepSimulation()
+
+
+def generate_random_object(view_matrix, projection_matrix):
     p.resetSimulation()
 
-    # Load plane and object
+    # Load object
     p.loadURDF("plane.urdf")
-
     # x_bound: [0.5, 0.65]
     # y_bound: [-0.17, 0.21]
     obj_x = random.uniform(0.55, 0.6)
@@ -77,14 +107,19 @@ def test(view_matrix, projection_matrix):
     obj = p.loadURDF("./0002/0002.urdf", obj_pos, obj_quater_orient)
 
     # Get image of the objects without loading the robot
-    _, _, _, _, seg_img = p.getCameraImage(width=256,
+    _, _, _, d, seg_img = p.getCameraImage(width=256,
                                            height=256,
                                            viewMatrix=view_matrix,
                                            projectionMatrix=projection_matrix)
 
     seg_img = np.reshape(seg_img, (256, 256, 1))
-    # To see the seg image.
-    # seg_img[seg_img == 1] = 124
+    return seg_img, obj, obj_pos, obj_rot
+
+
+def test_infer(view_matrix, projection_matrix):
+    record = "./NaiveNet200.pth"
+    seg_img, obj, obj_pos, obj_rot = generate_random_object(view_matrix, projection_matrix)
+    res = infer(seg_img, record)
 
     # Load Kuka robot.
     robot = kuka.Kuka(urdfRootPath=pdata.getDataPath(), timeStep=1. / 240.)
@@ -95,17 +130,12 @@ def test(view_matrix, projection_matrix):
     x = obj_pos[0] - robot.getObservation()[0]
     y = obj_pos[1] - robot.getObservation()[1]
     a = math.pi / 2 - obj_rot
-    robot.applyAction([x, y, -0.22, a, 0.3])
 
-    # Wait until the gripper is at surface level.
-    while robot.getObservation()[2] > 0.24:
-        p.stepSimulation()
+    print("target: {} {} {}".format(x, y, a))
+    print("actual: {} {} {}".format(res[0], res[1], res[2]))
+    generate_robot_movement(robot, res[0], res[1], res[2])
 
-    # Wait until the gripper stops moving.
-    while p.getLinkState(robot.kukaUid, 13, 1)[6][0] > 1e-5:
-        p.stepSimulation()
-
-    return grasp(robot, obj), seg_img, [x, y, a]
+    return grasp(robot, obj)
 
 
 def build_dataset(view_matrix, projection_matrix, n):
@@ -122,29 +152,16 @@ def build_dataset(view_matrix, projection_matrix, n):
             count += 1
 
 
-def build_h5():
-    label = np.genfromtxt("label.csv", delimiter=",")
-    train = []
-    for file in os.listdir("./data"):
-        if file.endswith(".jpeg"):
-            filename = os.path.join("./data", file)
-            train.append(cv2.imread(filename, cv2.IMREAD_GRAYSCALE))
-    train = np.array(train)
-    h5 = h5py.File('data.h5', 'w')
-    print(label.shape)
-    print(train.shape)
-
-    h5.create_dataset('input', data=train)
-    h5.create_dataset('label', data=label)
-
-
 if __name__ == "__main__":
-    # view_matrix, projection_matrix = init()
-    # # for i in range(10000):
-    # #     if not test(view_matrix, projection_matrix)[0]:
-    # #         print("Failed.")
-    # #     else:
-    # #         print("Pass:", i)
-    # build_dataset(view_matrix, projection_matrix, 10000)
-    # p.disconnect()
-    build_h5()
+    view_matrix, projection_matrix = init(0)
+    # for i in range(10000):
+    #     if not test(view_matrix, projection_matrix)[0]:
+    #         print("Failed.")
+    #     else:
+    #         print("Pass:", i)
+    for i in range(100):
+        if not test_infer(view_matrix, projection_matrix):
+            print("Failed.")
+        else:
+            print("Pass:", i)
+    p.disconnect()
