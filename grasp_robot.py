@@ -9,7 +9,7 @@ from pybullet_envs.bullet import kuka
 
 
 def init(useGUI):
-    if (useGUI):
+    if useGUI:
         p.connect(p.GUI)
     else:
         p.connect(p.DIRECT)
@@ -22,12 +22,12 @@ def init(useGUI):
     p.setRealTimeSimulation(0)
 
     # Compute the view and image from camera
-    view_matrix = p.computeViewMatrix([0.575, 0, 0.7], [0.6, 0, 0], [-1, 0, 0])
+    view_matrix = p.computeViewMatrix([0.575, 0, 0.5], [0.575, 0, 0], [-1, 0, 0])
     projection_matrix = p.computeProjectionMatrixFOV(
         fov=45.0,
         aspect=1,
         nearVal=0.1,
-        farVal=1.6)
+        farVal=0.55)
 
     return view_matrix, projection_matrix
 
@@ -85,7 +85,7 @@ def adjust_and_down(robot, x, y, a):
 
 def generate_random_object(view_matrix, projection_matrix):
     p.resetSimulation()
-
+    hw = 128
     # Load object
     p.loadURDF("plane.urdf")
     # x_bound: [0.5, 0.65]
@@ -100,25 +100,25 @@ def generate_random_object(view_matrix, projection_matrix):
     obj = p.loadURDF("./0002/0002.urdf", obj_pos, obj_quater_orient)
 
     # Get image of the objects without loading the robot
-    _, _, _, d, seg_img = p.getCameraImage(width=256,
-                                           height=256,
+    _, _, _, _, seg_img = p.getCameraImage(width=hw,
+                                           height=hw,
                                            viewMatrix=view_matrix,
                                            projectionMatrix=projection_matrix)
 
-    seg_img = np.reshape(seg_img, (256, 256, 1))
+    seg_img = np.reshape(seg_img, (hw, hw, 1))
     return seg_img, obj, obj_pos, obj_rot
 
 
 def build_kuka():
     # Load Kuka robot.
-    robot = kuka.Kuka(urdfRootPath=pdata.getDataPath(), timeStep=1. / 240.)
+    robot = kuka.Kuka(urdfRootPath=pdata.getDataPath())
 
     # Remove the tray object.
     p.removeBody(robot.trayUid)
     return robot
 
 
-
-
-
-
+if __name__ == "__main__":
+    view_matrix, projection_matrix = init(1)
+    while 1:
+        success, seg_img, [x, y, a] = build_and_grasp(view_matrix, projection_matrix)

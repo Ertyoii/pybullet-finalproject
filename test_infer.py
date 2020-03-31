@@ -2,8 +2,8 @@ from infer import *
 from grasp_robot import *
 
 
-def test_infer(view_matrix, projection_matrix):
-    record = "./NaiveNet200.pth"
+def test_infer(view_matrix, projection_matrix, record):
+
     seg_img, obj, obj_pos, obj_rot = generate_random_object(view_matrix, projection_matrix)
     res = infer(seg_img, record)
 
@@ -21,9 +21,10 @@ def test_infer(view_matrix, projection_matrix):
 
 
 if __name__ == "__main__":
+    record = "./NaiveNet600.pth"
     view_matrix, projection_matrix = init(0)
     for i in range(100):
-        if not test_infer(view_matrix, projection_matrix):
+        if not test_infer(view_matrix, projection_matrix, record):
             print("Failed.")
         else:
             print("Pass:", i)

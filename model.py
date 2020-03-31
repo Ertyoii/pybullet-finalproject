@@ -10,7 +10,7 @@ class NaiveNet(nn.Module):
         self.conv2 = nn.Conv2d(32, 64, 3, 1, 1)
         self.pool2 = nn.MaxPool2d(2)
 
-        self.fc1 = nn.Linear(64 * 64 * 64, 1000)
+        self.fc1 = nn.Linear(64 * 32 * 32, 1000)
         self.fc2 = nn.Linear(1000, 3)
 
     def forward(self, x):

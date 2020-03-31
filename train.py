@@ -1,9 +1,21 @@
+import os
+import argparse
 import torch.optim as optim
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 
 from data import *
 from model import *
+
+parser = argparse.ArgumentParser(
+    description='Hyperparameters and locations'
+)
+parser.add_argument('--data_path', type=str, required=True, help='path of h5 data file')
+parser.add_argument('--save_dir', type=str, required=True, help='path to save checkpoints')
+parser.add_argument('--learning_rate', '--lr', type=float, required=True, help='learning rate')
+parser.add_argument('--epochs', '-ep', type=int, default=1000, help='epochs')
+parser.add_argument('--batch_size', '-bs', type=int, default=64, help='batch size')
+parser.add_argument('--training_size', type=int, default=256, help='size of training data')
 
 
 def train(epochs, train_loader, use_gpu, optimizer, model, criterion, save_dir):
@@ -18,19 +30,16 @@ def train(epochs, train_loader, use_gpu, optimizer, model, criterion, save_dir):
                 inputs, labels = Variable(batch['X']), Variable(batch['l'])
 
             outputs = model(inputs)
-            x_mul = torch.ones(outputs.shape) * 10
-            y_mul = torch.ones(labels.shape) * 10
-            if use_gpu:
-                x_mul = x_mul.cuda()
-                y_mul = y_mul.cuda()
 
-            outputs = torch.mul(x_mul, outputs)
-            labels = torch.mul(y_mul, labels)
+            if use_gpu:
+                outputs = outputs.cuda()
+                labels = labels.cuda()
+
             loss = criterion(outputs, labels)
 
             loss.backward()
             optimizer.step()
-            # print("loss: {}".format(loss.item()))
+            print("loss: {}".format(loss.item()))
 
         if epoch % 10 == 0:
             print("epoch{}, loss: {}".format(epoch, loss.item()))
@@ -42,16 +51,13 @@ def train(epochs, train_loader, use_gpu, optimizer, model, criterion, save_dir):
 
 
 def main(data_path, save_dir):
-    epochs = 1000
-    batch_size = 64
-    learning_rate = 4e-4
-
     f = h5py.File(data_path, 'r')
-    images = np.array(f["input"]).reshape(10000, 1, 256, 256)
+    # images = np.array(f["input"]).reshape(10000, 1, hw, hw)
+    images = np.array(f["input"])
+    images = images.reshape(images.shape[0], 1, images.shape[1], images.shape[2])
     label = np.array(f["label"])
     f.close()
 
-    data_size = 256
     train_data = RobotDataset(images[:data_size, :, :, :], label[:data_size, :])
     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=4)
 
@@ -68,11 +74,13 @@ def main(data_path, save_dir):
 
 
 if __name__ == "__main__":
-    if not len(sys.argv) == 3:
-        print("Usage: {} data_path SAVE_DIR".format(sys.argv[0]))
-        sys.exit(1)
+    args = parser.parse_args()
 
-    data_path = sys.argv[1]
-    save_dir = sys.argv[2]
+    data_path = args.data_path
+    save_dir = args.save_dir
+    epochs = args.epochs
+    batch_size = args.batch_size
+    learning_rate = args.learning_rate
+    data_size = args.training_size
 
     main(data_path, save_dir)
