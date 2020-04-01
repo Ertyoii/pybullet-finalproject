@@ -13,18 +13,17 @@ def test_single_image():
     plt.show()
 
 
-def test_image_in_dataset(data_filename):
-    idx = 4
+def test_image_in_dataset(i):
     input, label = load_data(data_filename)
     print(input.shape)
-    img = input[idx].reshape(input.shape[2], input.shape[3])
+    img = input[i].reshape(input.shape[2], input.shape[3])
     print("{0:.2f}%".format(100 * np.sum(img == 1) / (input.shape[2] * input.shape[3])))
-    print(label[idx])
     plt.imshow(img)
     plt.show()
 
 
 if __name__ == "__main__":
     # test_single_image()
-    data_filename = 'data_h128_2w.h5'
-    test_image_in_dataset(data_filename)
+    data_filename = 'data_test.h5'
+    for i in range(16):
+        test_image_in_dataset(i)

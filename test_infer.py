@@ -21,8 +21,8 @@ def test_infer(view_matrix, projection_matrix, record):
 
 
 if __name__ == "__main__":
-    record = "./NaiveNet600.pth"
-    view_matrix, projection_matrix = init(0)
+    record = "./NaiveNet400.pth"
+    view_matrix, projection_matrix = init(1)
     for i in range(100):
         if not test_infer(view_matrix, projection_matrix, record):
             print("Failed.")

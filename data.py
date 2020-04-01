@@ -39,7 +39,7 @@ def worker(start, end):
     while start < end:
         success, seg_img, xya = build_and_grasp(view_matrix, projection_matrix)
         if success:
-            print(start)
+            # print(start)
             temp_train.append(seg_img)
             temp_label.append(xya)
             start += 1
@@ -72,15 +72,15 @@ def build_dataset():
     while count < volume:
         success, seg_img, xya = build_and_grasp(view_matrix, projection_matrix)
         if success:
-            print(count)
+            # print(count)
             train.append(seg_img)
             label.append(xya)
             count += 1
 
     train = np.array(train)
     label = np.array(label)
-    print(train.shape)
-    print(label.shape)
+    # print(train.shape)
+    # print(label.shape)
 
     h5 = h5py.File(data_filename, "w")
 
@@ -90,7 +90,7 @@ def build_dataset():
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print("Usage: {} data filename".format(sys.argv[0]))
+        print("Usage: {} data_filename".format(sys.argv[0]))
         sys.exit(1)
 
     if not sys.argv[1].endswith(".h5"):
@@ -98,8 +98,8 @@ if __name__ == "__main__":
         sys.exit(1)
 
     view_matrix, projection_matrix = init(0)
-    volume = cpu_count() * 1000
+    volume = cpu_count() * 50
     data_filename = sys.argv[1]
 
-    build_dataset()
+    build_dataset_parallel()
     print("Dataset building completed.")
