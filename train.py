@@ -23,6 +23,7 @@ parser.add_argument('--training_size', type=int, default=256, help='size of trai
 
 def train(train_loader, eval_loader, use_gpu, optimizer, model, criterion):
     for epoch in range(epochs):
+        loss = 0
         for _, batch in enumerate(train_loader):
             optimizer.zero_grad()
             if use_gpu:

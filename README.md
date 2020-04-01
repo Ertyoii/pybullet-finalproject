@@ -1,7 +1,6 @@
 # Final Project robot manipulation
 TODO:
-1. Add eval set.
-2. Add push function. 
+1. Add push function. 
 
 DONE:
 1. Find the center of object.
@@ -11,3 +10,4 @@ DONE:
 5. Build a naive model to infer x, y, a from images.
 6. Train the model and integrate it into grasp operation.
 7. Try larger percentage of object in view.
+8. Add eval set.
